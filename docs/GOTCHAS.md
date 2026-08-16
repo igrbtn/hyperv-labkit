@@ -64,11 +64,55 @@
 
 ## S2D / кластеры (nested)
 
-- Ноды: Datacenter edition, nested virt (`ExposeVirtualizationExtensions`),
-  **статическая память** (динамическая ломает S2D), MacAddressSpoofing On.
+- Ноды: Datacenter edition, **статическая память** (динамическая ломает S2D);
+  nested virt (`ExposeVirtualizationExtensions` + MacAddressSpoofing) - только
+  если ноды сами крутят VM (hyper-converged).
+- **"Растянутый" S2D на WS2025 - две разные топологии** (Microsoft Learn,
+  failover-clustering/topologies). Не смешивать:
+  - **Campus (rack-aware)**: 2 fault domain `-Type Rack`, ОДИН пул, тома
+    Rack Level Nested Mirror (2/4 копии), БЕЗ Storage Replica. Требует WS2025 +
+    CU от декабря 2025 (KB5072033). Для лабы обычно достаточно его.
+  - **Stretched (site)**: 2 fault domain `-Type Site` (AD-сайты), пул НА САЙТ,
+    тома реплицирует Storage Replica (sync <5ms RTT, фича Storage-Replica,
+    Datacenter). SR-партнёрства настраиваются руками.
+- **Witness - в третьем месте**, не в одном из двух fault domain (иначе потеря
+  "сайта" с witness кладёт кворум). Права на шару кластерному аккаунту
+  (`DOMAIN\CLUSTER1$`) выдавать ПОСЛЕ New-Cluster - до него аккаунта нет.
+- Fault domains создавать ПОСЛЕ New-Cluster и ДО Enable-ClusterStorageSpacesDirect.
 - Виртуальные data-диски проваливают eligibility-check (MediaType Unspecified):
   в лабе `Enable-ClusterStorageSpacesDirect -SkipEligibilityChecks -CacheState Disabled`.
 - Чекпоинты Hyper-V на нодах с дисками в пуле - способ убить пул.
+
+## Приёмный тракт ФИЗИЧЕСКОГО хоста (RSS/VMQ/VMMQ)
+
+К nested-гостям не применимо (нет аппаратных очередей). Для физических
+Hyper-V/S2D хостов - краткий эталон, чтобы не наступать на типовые грабли:
+
+- **Ядро 0 не несёт очередей**: на нём default queue и прерывания ОС.
+  `Set-NetAdapterRss -BaseProcessorNumber 2` (при HT RSS и так берёт по одному
+  LP на физическое ядро).
+- **Номера процессоров - относительно processor group.** На машинах >64 LP Windows
+  режет LP на группы по NUMA-нодам; RSS не пересекает границу группы. Задавать
+  `-BaseProcessorGroup/-MaxProcessorGroup` явно, диапазоны считать на хосте от
+  группы/NUMA порта, а не таблицей абсолютных чисел.
+- **Профиль `ClosestStatic`**, не `Closest`: динамический профиль пересчитывает
+  indirection-таблицу на ходу. Числовое значение advanced-ключворда `*RSSProfile`
+  для ClosestStatic = 2 (1 = Closest), но надёжнее `Set-NetAdapterRss -Profile`.
+  Driver advanced properties и Set-NetAdapterRss пишут одни и те же registry-ключи -
+  побеждает написавший последним; два источника истины = разъехавшийся конфиг.
+- **VMQ-диапазон порта = RSS-диапазон порта**; каждому порту - свой непересекающийся
+  блок ядер своей NUMA-ноды; vNIC пинится к порту через Set-VMNetworkAdapterTeamMapping
+  и живёт в блоке своего порта.
+- **VmmqQueuePairs**: фактическое число выдаёт система (requested vs actual в
+  `Get-VMNetworkAdapter`). Задавать requested явно и выравнивать с
+  `DefaultQueueVmmqQueuePairs` на свитче, иначе значения плавают между хостами.
+- **RDMA (SMB Direct) идёт МИМО RSS/VMQ/VMMQ**: для S2D-storage главный рычаг -
+  DCB/PFC и единый DcbxMode на всех портах всех узлов, а не VMMQ-пары. RSS-тюнинг
+  vNIC влияет на TCP-фазу и fallback.
+- **SR-IOV и VMMQ на одном vPort взаимоисключающи**; SR-IOV на порту при
+  `IovEnabled False` на свитче - мёртвое свойство, выключить.
+- **PacketDirect выключать** - потребителей интерфейса нет, только резервирует
+  очереди и буферы.
 
 ## Exchange 2019 (каждый пункт стоил ночи)
 

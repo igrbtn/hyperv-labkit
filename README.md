@@ -48,7 +48,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File lib/hv.ps1 -File host/status
 | `lib/` | обёртки: `hv.ps1` (выполнить скрипт на хосте), `hvcopy.ps1`/`hvfetch.ps1` (файлы на/с хоста), `common.ps1` (.env, сессия, токены) |
 | `host/` | `blocks.ps1` - building blocks, исполняются на хосте (New-LabVM, New-LabNetwork, Install-LabGuestTask, Get-LabKvpStatus...); `status.ps1`, `screenshot.ps1` |
 | `guest/` | шаблоны self-driving bootstrap для гостей: первый DC (лес), реплика DC (сайт), member-join |
-| `roles/` | ролевые state-машины поверх домена: AD CS, IIS, Exchange 2019 |
+| `roles/` | ролевые state-машины поверх домена: AD CS, IIS, Exchange 2019, S2D-нода |
 | `labs/` | по каталогу на лабу (генерирует Claude); `example-ad-multisite/` - рабочий пример |
 | `scripts/` | `creds_editor.ps1` - локальный веб-редактор `.env` |
 | `docs/` | `GOTCHAS.md` - грабли headless-развёртывания, набитые на практике. Читать при любой проблеме |
@@ -71,4 +71,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File lib/hv.ps1 -File host/status
 
 ## Версия
 
-0.1.0 - первый срез: building blocks, AD multi-site, S2D stretched, роли AD CS/IIS/Exchange.
+0.2.0 - S2D: развилка campus (rack-aware) / stretched (Storage Replica) по актуальной
+документации WS2025, роль подготовки ноды, эталон RSS/VMQ/VMMQ для физических хостов
+в GOTCHAS. 0.1.0 - первый срез: building blocks, AD multi-site, роли AD CS/IIS/Exchange.

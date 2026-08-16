@@ -38,8 +38,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File lib/hvfetch.ps1 -Source 'C:\
 - **guest/** - шаблоны bootstrap: `bootstrap_dc_forest.ps1`, `bootstrap_dc_replica.ps1`,
   `bootstrap_member.ps1`. Копируются в `labs/<lab>/guest/`, правится блок CONFIG сверху,
   стейджатся на хост (`hvcopy` в `C:\Lab\<lab>\`), путь передаётся в `New-LabVM`.
-- **roles/** - ролевые state-машины (`role_adcs.ps1`, `role_iis.ps1`, `role_exchange.ps1`);
-  деплой ТОЛЬКО через `Install-LabGuestTask` (иначе роль встанет на хост!).
+- **roles/** - ролевые state-машины (`role_adcs.ps1`, `role_iis.ps1`, `role_exchange.ps1`,
+  `role_s2d_node.ps1`); деплой ТОЛЬКО через `Install-LabGuestTask` (иначе роль встанет на хост!).
 - **labs/** - каталог на лабу: guest-скрипты с заполненным CONFIG + `build.ps1` + post-скрипты.
 
 ## Workflow сборки лабы
@@ -62,8 +62,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File lib/hvfetch.ps1 -Source 'C:\
   `scripts/creds_editor.ps1`.
 - Один `New-LabVM` за раз (билдер монтирует VHD на буквы S:/W: хоста).
 - Exchange 2019 ставится ТОЛЬКО на гость WS2022 (на WS2025 не поддерживается).
-- S2D: гости Datacenter edition, nested virt, статическая память; для витринных
-  (nested) дисков - `Enable-ClusterStorageSpacesDirect -SkipEligibilityChecks`.
+- S2D: гости Datacenter edition, статическая память; nested-диски -
+  `Enable-ClusterStorageSpacesDirect -SkipEligibilityChecks`. "Растянутый" =
+  campus (rack FD, один пул) ИЛИ stretched (site FD, пул на сайт + Storage
+  Replica) - выбор топологии см. скилл lab-s2d-stretched.
 - При любой странности - сначала `docs/GOTCHAS.md`, потом `host/screenshot.ps1`.
 
 ## Configuration
@@ -79,4 +81,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File lib/hvfetch.ps1 -Source 'C:\
 
 ## Versioning
 
-Semver в этом файле и README. Текущая: **0.1.0**.
+Semver в этом файле и README. Текущая: **0.2.0** (S2D: campus/stretched
+топологии по MS Learn, role_s2d_node, эталон приёмного тракта в GOTCHAS).
