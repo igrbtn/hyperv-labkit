@@ -1,0 +1,18 @@
+# secrets
+.env
+.env.*
+!.env.example
+*credentials*
+*.pem
+*.pfx
+*.key
+*_key
+*_key.pub
+id_rsa*
+
+# junk
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+scratch/

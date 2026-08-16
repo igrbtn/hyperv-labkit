@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File lib/hv.ps1:*)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File lib/hvcopy.ps1:*)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File lib/hvfetch.ps1:*)",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File lib/hv.ps1:*)",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File lib/hvcopy.ps1:*)",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File lib/hvfetch.ps1:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "deny": [
+      "Read(./.env)"
+    ]
+  }
+}
