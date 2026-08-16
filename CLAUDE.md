@@ -81,5 +81,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File lib/hvfetch.ps1 -Source 'C:\
 
 ## Versioning
 
-Semver в этом файле и README. Текущая: **0.2.0** (S2D: campus/stretched
-топологии по MS Learn, role_s2d_node, эталон приёмного тракта в GOTCHAS).
+Semver в этом файле и README. Текущая: **0.3.0** (повторяющийся триггер задачи
+и жёсткий гейт на сеть - уроки живого прогона на соседнем гипервизоре).

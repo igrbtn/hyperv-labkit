@@ -71,6 +71,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File lib/hv.ps1 -File host/status
 
 ## Версия
 
+0.3.0 - повторяющийся триггер задачи и жёсткий гейт на сеть (уроки живого прогона).
 0.2.0 - S2D: развилка campus (rack-aware) / stretched (Storage Replica) по актуальной
 документации WS2025, роль подготовки ноды, эталон RSS/VMQ/VMMQ для физических хостов
 в GOTCHAS. 0.1.0 - первый срез: building blocks, AD multi-site, роли AD CS/IIS/Exchange.

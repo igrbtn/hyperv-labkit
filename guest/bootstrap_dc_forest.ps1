@@ -35,14 +35,27 @@ if ($step -eq 'start') {
         Start-Sleep 10
     }
     Status "$VmTag|bootstrap|network"
-    try {
+    # Hard gate: promoting a forest without a working NIC produces a broken
+    # domain that is faster to rebuild than to repair. No adapter -> stop and
+    # let the repeating task trigger try again.
+    $ifc = $null
+    for ($i = 0; $i -lt 30; $i++) {
         $ifc = Get-NetAdapter | Where-Object Status -eq 'Up' | Select-Object -First 1
+        if ($ifc) { break }
+        Start-Sleep 10
+    }
+    if (-not $ifc) { Log 'no NIC in Up state'; Status "$VmTag|bootstrap|no-nic"; return }
+    try {
         Get-NetIPAddress -InterfaceIndex $ifc.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue | Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
         Remove-NetRoute -InterfaceIndex $ifc.ifIndex -Confirm:$false -ErrorAction SilentlyContinue
-        New-NetIPAddress -InterfaceIndex $ifc.ifIndex -IPAddress $IP -PrefixLength $Prefix -DefaultGateway $Gateway -ErrorAction SilentlyContinue | Out-Null
+        New-NetIPAddress -InterfaceIndex $ifc.ifIndex -IPAddress $IP -PrefixLength $Prefix -DefaultGateway $Gateway -ErrorAction Stop | Out-Null
         Set-DnsClientServerAddress -InterfaceIndex $ifc.ifIndex -ServerAddresses 127.0.0.1
-        Log "static IP $IP set"
-    } catch { Log ('net cfg: ' + $_.Exception.Message) }
+        Log "static IP $IP set on $($ifc.Name)"
+    } catch {
+        Log ('net cfg ERROR: ' + $_.Exception.Message)
+        Status "$VmTag|bootstrap|net-error"
+        return
+    }
     try { Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction SilentlyContinue } catch {}
     Status "$VmTag|bootstrap|features"
     $r = Install-WindowsFeature AD-Domain-Services, DNS -IncludeManagementTools

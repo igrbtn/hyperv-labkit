@@ -34,14 +34,25 @@ if ($step -eq 'start') {
         Start-Sleep 10
     }
     Status "$VmTag|bootstrap|network"
-    try {
+    # hard gate: joining a domain without a NIC cannot work
+    $ifc = $null
+    for ($i = 0; $i -lt 30; $i++) {
         $ifc = Get-NetAdapter | Where-Object Status -eq 'Up' | Select-Object -First 1
+        if ($ifc) { break }
+        Start-Sleep 10
+    }
+    if (-not $ifc) { Log 'no NIC in Up state'; Status "$VmTag|bootstrap|no-nic"; return }
+    try {
         Get-NetIPAddress -InterfaceIndex $ifc.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue | Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
         Remove-NetRoute -InterfaceIndex $ifc.ifIndex -Confirm:$false -ErrorAction SilentlyContinue
-        New-NetIPAddress -InterfaceIndex $ifc.ifIndex -IPAddress $IP -PrefixLength $Prefix -DefaultGateway $Gateway -ErrorAction SilentlyContinue | Out-Null
+        New-NetIPAddress -InterfaceIndex $ifc.ifIndex -IPAddress $IP -PrefixLength $Prefix -DefaultGateway $Gateway -ErrorAction Stop | Out-Null
         Set-DnsClientServerAddress -InterfaceIndex $ifc.ifIndex -ServerAddresses $DnsServer
-        Log "static IP $IP, DNS $DnsServer set"
-    } catch { Log ('net cfg: ' + $_.Exception.Message) }
+        Log "static IP $IP, DNS $DnsServer set on $($ifc.Name)"
+    } catch {
+        Log ('net cfg ERROR: ' + $_.Exception.Message)
+        Status "$VmTag|bootstrap|net-error"
+        return
+    }
     try {
         # keep Windows Update from grabbing CBS during role installs
         New-Item -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Servicing' -Force -ErrorAction SilentlyContinue | Out-Null

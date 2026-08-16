@@ -30,7 +30,10 @@ $act = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -
 $pr  = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
 $st  = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 2) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 3) -MultipleInstances IgnoreNew
 $t1  = New-ScheduledTaskTrigger -AtStartup
-$t2  = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(2))
+# Repeat every 5 minutes: a guest whose dependency is not ready yet (DC still
+# promoting, DNS silent) rewinds its state and needs another attempt without
+# waiting for a reboot. The state machine disables the task when it is done.
+$t2  = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(2)) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Hours 4)
 Register-ScheduledTask -TaskName 'Lab-Bootstrap' -Action $act -Principal $pr -Settings $st -Trigger $t1,$t2 -Force
 '@
 
