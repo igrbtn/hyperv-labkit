@@ -60,9 +60,19 @@ if ($step -eq 'start') {
     } catch {}
     try { Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction SilentlyContinue } catch {}
     Status "$VmTag|bootstrap|waiting-dc"
-    for ($i = 0; $i -lt 60; $i++) {
-        try { if (Resolve-DnsName -Name $Domain -Type A -Server $DnsServer -ErrorAction Stop) { break } } catch { Start-Sleep 10 }
+    # DNS answering is NOT enough: a DC serves DNS long before AD is usable, and
+    # a join at that moment fails with "domain could not be contacted". Wait for
+    # the SRV records netlogon publishes plus LDAP.
+    $dcUp = $false
+    for ($i = 0; $i -lt 90; $i++) {
+        try {
+            $srv = Resolve-DnsName -Name "_ldap._tcp.dc._msdcs.$Domain" -Type SRV -Server $DnsServer -ErrorAction Stop
+            $ldap = Test-NetConnection -ComputerName $DnsServer -Port 389 -WarningAction SilentlyContinue
+            if ($srv -and $ldap.TcpTestSucceeded) { $dcUp = $true; break }
+        } catch { }
+        Start-Sleep 20
     }
+    if (-not $dcUp) { Log 'AD not reachable yet'; Status "$VmTag|bootstrap|dc-not-ready"; return }
     # write next state BEFORE joining: Add-Computer reboots the machine
     Set-Content $stateFile 'joined'
     Status "$VmTag|bootstrap|joining"

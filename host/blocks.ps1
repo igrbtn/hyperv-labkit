@@ -33,7 +33,9 @@ $t1  = New-ScheduledTaskTrigger -AtStartup
 # Repeat every 5 minutes: a guest whose dependency is not ready yet (DC still
 # promoting, DNS silent) rewinds its state and needs another attempt without
 # waiting for a reboot. The state machine disables the task when it is done.
-$t2  = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(2)) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Hours 4)
+# RepetitionDuration stays at MaxValue on purpose: a bounded duration next to
+# -Once schedules the next run a day out instead of in five minutes.
+$t2  = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(2)) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration ([TimeSpan]::MaxValue)
 Register-ScheduledTask -TaskName 'Lab-Bootstrap' -Action $act -Principal $pr -Settings $st -Trigger $t1,$t2 -Force
 '@
 

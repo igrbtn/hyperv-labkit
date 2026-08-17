@@ -58,9 +58,18 @@ if ($step -eq 'start') {
     }
     try { Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction SilentlyContinue } catch {}
     Status "$VmTag|bootstrap|waiting-dc"
-    for ($i = 0; $i -lt 60; $i++) {
-        try { if (Resolve-DnsName -Name $Domain -Type A -Server $DnsServer -ErrorAction Stop) { break } } catch { Start-Sleep 10 }
+    # DNS answering is NOT enough: the first DC serves DNS long before AD is
+    # usable, and promoting a replica against a half-ready forest fails.
+    $dcUp = $false
+    for ($i = 0; $i -lt 90; $i++) {
+        try {
+            $srv = Resolve-DnsName -Name "_ldap._tcp.dc._msdcs.$Domain" -Type SRV -Server $DnsServer -ErrorAction Stop
+            $ldap = Test-NetConnection -ComputerName $DnsServer -Port 389 -WarningAction SilentlyContinue
+            if ($srv -and $ldap.TcpTestSucceeded) { $dcUp = $true; break }
+        } catch { }
+        Start-Sleep 20
     }
+    if (-not $dcUp) { Log 'forest not reachable yet'; Status "$VmTag|bootstrap|dc-not-ready"; return }
     Status "$VmTag|bootstrap|features"
     $r = Install-WindowsFeature AD-Domain-Services, DNS -IncludeManagementTools
     Log ('features success=' + $r.Success)
