@@ -76,16 +76,26 @@ if ($step -eq 'start') {
     # write next state BEFORE joining: Add-Computer reboots the machine
     Set-Content $stateFile 'joined'
     Status "$VmTag|bootstrap|joining"
-    try {
-        $sec  = ConvertTo-SecureString '__LAB_PW__' -AsPlainText -Force
-        $cred = New-Object System.Management.Automation.PSCredential("$NetBios\Administrator", $sec)
-        Add-Computer -DomainName $Domain -Credential $cred -Force -Restart -ErrorAction Stop
-        Log 'Add-Computer issued (reboot expected)'
-    } catch {
-        Log ('join ERROR: ' + $_.Exception.Message)
-        Status "$VmTag|bootstrap|join-error"
-        Set-Content $stateFile 'start'
+    # Retry the join itself rather than trying to predict when AD is ready.
+    # SRV records and LDAP answer minutes before the domain actually accepts a
+    # join, so every readiness probe is a guess; attempting the real operation
+    # is the only honest test. The scheduled task retry stays as an outer net.
+    $sec  = ConvertTo-SecureString '__LAB_PW__' -AsPlainText -Force
+    $cred = New-Object System.Management.Automation.PSCredential("$NetBios\Administrator", $sec)
+    for ($try = 1; $try -le 15; $try++) {
+        try {
+            Add-Computer -DomainName $Domain -Credential $cred -Force -Restart -ErrorAction Stop
+            Log "Add-Computer issued on attempt $try (reboot expected)"
+            return
+        } catch {
+            Log ("join attempt $try failed: " + $_.Exception.Message)
+            Status "$VmTag|bootstrap|joining-retry-$try"
+            Start-Sleep 60
+        }
     }
+    Log 'join did not succeed after 15 attempts'
+    Status "$VmTag|bootstrap|join-error"
+    Set-Content $stateFile 'start'
     return
 }
 
